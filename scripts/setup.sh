@@ -41,27 +41,45 @@ function f_apt_proxy() {
 ### main() #####################################################################
 main() {
     if ! type apt-get &>/dev/null; then
-        echo "This script is currently only for Ubuntu (20.04)"
+        _log "ERROR" "This script is currently only for Ubuntu (20.04)"
         return 1
     fi
 
-    # Set apt proxy rep (NXRM3)
-    f_apt_proxy "${_NXRM_APT_PROXY}" || return $?
-
+    # Set apt proxy repo (NXRM3)
+    if ! f_apt_proxy "${_NXRM_APT_PROXY}"; then
+        _log "ERROR" "Updating sources.list with ${_NXRM_APT_PROXY} failed."
+        return 1
+    fi
     # Install required commands:
     apt-get install -y sudo curl net-tools || return $?
 
     # Create non root user for the application
-    f_useradd "${_APP_USER}" || return $?
+    if ! f_useradd "${_APP_USER}"; then
+        _log "ERROR" "Adding ${_APP_USER} user failed."
+        return 1
+    fi
 
     # Install and setup OpenLDAP
-    f_ldap_server_install
+    if ! f_ldap_server_install; then
+        _log "ERROR" "f_ldap_server_install failed."
+        return 1
+    fi
     # Install and setup Kerberos to use OpenLDAP
-    f_kdc_install
-    # Install Apache2 and PhpSimpleSaml
+    if ! f_kdc_install; then
+        _log "ERROR" "f_kdc_install failed."
+        return 1
+    fi
+    # Install PhpSimpleSaml
+    if ! f_simplesamlphp; then
+        _log "ERROR" "f_simplesamlphp failed."
+        return 1
+    fi
     # Install dnsmasq
-    f_dnsmasq
-    # TODO: HAProxy and Nginx example
+    if ! f_dnsmasq; then
+        _log "ERROR" "f_dnsmasq failed."
+        return 1
+    fi
+    # TODO: Setup Apache2 with RUT
 }
 
 if [ "$0" = "$BASH_SOURCE" ]; then
